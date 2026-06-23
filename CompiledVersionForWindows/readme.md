@@ -3,6 +3,7 @@
 
 ## Download
 The binary software application can be downloaded here: https://quantacell.cloud.in-cubes.com/index.php/s/YNGLws52yzDJFg4
+Or here: https://drive.google.com/drive/folders/1y_JHWalyfM6ga646CT4we7A-FlC-Zmti?usp=drive_link
 
 ## Overview
 By integrating both advanced 3D AI tools and the versatility of user-oriented software under a single software, 3DCellScope bridge the gap between specialized pipelines and generalist commercial software positioning itself as an ideal choice for 3D image analysis of complex biological structure. Furthermore, we provide an interface that allows for the direct integration of other AI networks for nuclei segmentation. This capability facilitates collaborative efforts, acknowledges the rapid evolution of the field, and uniquely empowers users to assess the performance of different AI solutions with a single click.
