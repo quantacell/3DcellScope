@@ -46,6 +46,7 @@ import webbrowser
 from process.visualizationVTK import numpyToVTK, getSurface, getVolumes
 from process.fileManager import ImType
 
+from cellpose.models import CellposeModel
 
 my_window = OrganoSegmenterWindow()
 selectedImage, dictPredicted, dictLayers, currentLayer, currentMask, currentDf, fileInfos = None, None, None, None, None, None, None
@@ -355,6 +356,71 @@ def processFile():
     # my_window.setWindowTitle(f"OrganoSegmenter (version {my_window.app_version}) - Quantacell - ")
     return dictPredicted
 
+
+
+def process_with_cellpose():
+    """
+    Handles image processing with the CellposeSAM model via the Cellpose API.
+    """
+    global dictPredicted
+
+    # Get parameters from the UI
+    index = my_window.FileListWidget.currentRow()
+    if index < 0:
+        print("No image selected.")
+        return None
+
+    image_path_str = fileInfos[index].MainPath()
+    image_path = Path(image_path_str)
+    params = my_window.getNucleiParam()
+    imageParameters = my_window.getImageParameters()
+
+    # Create a results directory
+    result_folder = Path("results") / f"{image_path.stem}_cellpose_output"
+    result_folder.mkdir(exist_ok=True, parents=True)
+
+    # Load the image
+    try:
+        image_data = imread(image_path)
+    except Exception as e:
+        print(f"Error loading image {image_path}: {e}")
+        return None
+
+    # Initialize and run the CellposeSAM model
+    print("Initializing CellposeSAM model...")
+    # Note: The 'cellpose_sam' model might require a GPU.
+    model = CellposeModel(model_type='cellpose_sam')
+
+    print(f"Processing {image_path.name} with CellposeSAM...")
+    # The channel axis needs to be set correctly for model.eval.
+    # For grayscale 3D, channels=[0,0] is standard.
+    # For 3D RGB, it might be channels=[[2,3],[1,3]] or similar depending on your data.
+    # We assume grayscale here.
+    masks, flows, styles, diams = model.eval(image_data,
+                                             diameter=params.get('diameter'),
+                                             z_axis=0,
+                                             do_3D=True)
+
+    # Save the output mask
+    mask_path = result_folder / f"{image_path.stem}_mask.tif"
+    imwrite(mask_path, masks)
+    print(f"Saved mask to {mask_path}")
+
+    # Create a dummy statistics file to prevent downstream errors.
+    # The real feature extraction happens later in the pipeline.
+    fusion_path = result_folder / "fusion-statistics.csv"
+    pd.DataFrame({'label': np.unique(masks)[1:]}).to_csv(fusion_path, index=False)
+
+    # Return the results dictionary in the expected format
+    dictPredicted = {
+        "result_folder": str(result_folder),
+        "folder": True,
+        "images_paths": {
+            "mask_nuclei": str(mask_path),
+            "mask_organo": None  # No organoid mask from this process
+        }
+    }
+    return dictPredicted
 
 def createDictParamFolder(nucleiParameters, cellsParameters, organoidParameters, dictPreprocessing, folderPath, imageParameters, dictExport):
         fnames = [info.name for info in fileInfos]

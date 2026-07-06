@@ -1,8 +1,13 @@
 import ctypes
 import os
+import sys
+
+
 def hide_console():
-    ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
-    os.system("echo off")
+    if sys.platform == "win32":
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+        os.system("echo off")
+
 hide_console()
 import OS_Manager
 from PySide6.QtTest import QTest
@@ -43,6 +48,7 @@ def update_OS_UI():
     OS_Manager.my_window.ChangeModelTextBrowser.setVisible(False)
     OS_Manager.my_window.DefaultModelComboBox.clear()
     [OS_Manager.my_window.DefaultModelComboBox.addItem(el,userData=Path("models")/el) for el in info_dict["models"].keys() if (Path("models")/el).is_dir()]
+    OS_Manager.my_window.DefaultModelComboBox.addItem("CellposeSAM", userData="CellposeSAM")
     OS_Manager.my_window.DefaultModelComboBox.setCurrentIndex(OS_Manager.my_window.DefaultModelComboBox.findText("DeepStar3D"))
     OS_Manager.my_window.removeCurentModelButton = QPushButton(OS_Manager.my_window.style().standardIcon(QStyle.SP_LineEditClearButton),"",OS_Manager.my_window.ChangeModelTextBrowser.parent())
     OS_Manager.my_window.removeCurentModelButton.setGeometry(OS_Manager.my_window.DefaultModelComboBox.x()+OS_Manager.my_window.DefaultModelComboBox.width(), OS_Manager.my_window.DefaultModelComboBox.y(),25,25)
@@ -62,8 +68,8 @@ def update_OS_UI():
     OS_Manager.my_window.DefaultModelComboBox.currentIndexChanged.connect(lambda X:adjustSize2ModelAuto() )
     for el in [OS_Manager.my_window.DeltaXLineEdit,OS_Manager.my_window.DeltaYLineEdit,OS_Manager.my_window.DeltaZLineEdit]:
         el.textChanged.connect(adjustSize2ModelAuto)
-    
-    
+
+
     OS_Manager.my_window.AutoResizeWindowButton.setVisible(False)
 
     OS_Manager.ProgressBarWindow = getFakeProgressbar()
@@ -76,8 +82,11 @@ def update_NX_UI():
     glob.CONTEXT.main_windows.pcaModeComboBox.setCurrentIndex(1)
     def hide_layout_content(layout):
         for i in range(layout.count()):
-            widget = layout.itemAt(i).widget()
-            if widget: widget.hide()
+            item = layout.itemAt(i)
+            if item:
+                widget = item.widget()
+                if widget:
+                    widget.setVisible(False)
     hide_layout_content(glob.CONTEXT.main_windows.horizontalLayout_4)
     hide_layout_content(glob.CONTEXT.main_windows.horizontalLayout_5)
     hide_layout_content(glob.CONTEXT.main_windows.horizontalLayout_7)
@@ -107,7 +116,11 @@ def update_OPW_UI():
     OPW.hv_layout[4].insert(1,OPW.show_on_image)
     OPW.window.plot_widget.load("http://localhost:5006%s"%next(iter(OPW.pannels)))
 
-    
+
+def toggle_model_load_button():
+    is_stardist = OS_Manager.my_window.DefaultModelComboBox.currentData() != "CellposeSAM"
+    OS_Manager.my_window.ChangeModelButton.setText("Load Stardist Model" if is_stardist else "CellposeSAM (built-in)")
+    OS_Manager.my_window.ChangeModelButton.setEnabled(is_stardist)
 
 def connect_apps():
     OS_Manager.labelSelection = set()
@@ -121,6 +134,8 @@ def connect_apps():
     OS_Manager.my_window.ProcessFileButton.clicked.disconnect()
     OS_Manager.my_window.ChangeModelButton.clicked.disconnect()
     OS_Manager.my_window.ChangeModelButton.clicked.connect(loadModel)
+    OS_Manager.my_window.DefaultModelComboBox.currentIndexChanged.connect(toggle_model_load_button)
+    toggle_model_load_button()
     OS_Manager.my_window.ProcessFileButton.clicked.connect(process_decorator(process_file_and_density ))
     OS_Manager.my_window.showImage = add_selection_layer_decorator_to_image_display(OS_Manager.my_window.showImage)
     OS_Manager.my_window.removeCurentModelButton.clicked.connect(lambda:OS_Manager.my_window.DefaultModelComboBox.removeItem(OS_Manager.my_window.DefaultModelComboBox.currentIndex()))
@@ -130,16 +145,16 @@ def connect_apps():
     glob.CONTEXT.app_manager.undo_last_groupe_filter=filter_event_link_to_image_decorator(glob.CONTEXT.app_manager.undo_last_groupe_filter)
     glob.CONTEXT.app_manager.reset_group_filter=filter_event_link_to_image_decorator(glob.CONTEXT.app_manager.reset_group_filter)
     glob.CONTEXT.app_manager.density_plot = data_analysis_decorator(glob.CONTEXT.app_manager.density_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})
-    glob.CONTEXT.app_manager.bar_plot = data_analysis_decorator(glob.CONTEXT.app_manager.bar_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})  
-    glob.CONTEXT.app_manager.box_plot = data_analysis_decorator(glob.CONTEXT.app_manager.box_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})    
+    glob.CONTEXT.app_manager.bar_plot = data_analysis_decorator(glob.CONTEXT.app_manager.bar_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})
+    glob.CONTEXT.app_manager.box_plot = data_analysis_decorator(glob.CONTEXT.app_manager.box_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})
     glob.CONTEXT.app_manager.scatter_plot = data_analysis_decorator(glob.CONTEXT.app_manager.scatter_plot,{'all_features' : 2,'feature_selected' : 2,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})
     glob.CONTEXT.app_manager.componnent_analysis_plot = data_analysis_decorator(glob.CONTEXT.app_manager.componnent_analysis_plot,{'all_features' : 3,'feature_selected' : 0,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :1})
     glob.CONTEXT.app_manager.summary_plot = data_analysis_decorator(glob.CONTEXT.app_manager.summary_plot,{'all_features' : 1,'feature_selected' : 0,'data_group_selected' : 1,'data_group_control' : 1,'all_data_groups' :2})
     glob.CONTEXT.app_manager.cross_test_plot = data_analysis_decorator(glob.CONTEXT.app_manager.cross_test_plot,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 1,'data_group_control' : 0,'all_data_groups' :2})
-        
+
     glob.CONTEXT.main_windows.connect_components()
     glob.CONTEXT.main_windows.featureGateButton2.clicked.connect(filter_event_link_to_image_decorator(data_analysis_decorator(add_feature_gate_from_selection,{'all_features' : 1,'feature_selected' : 1,'data_group_selected' : 0,'data_group_control' : 0,'all_data_groups' :1})))
-    
+
     # OS_Manager.my_window.RightSideTabWidget.currentChanged.connect(OPW.window.plot_widget.reload)
     OS_Manager.my_window.image_fig.canvas.mpl_connect('button_press_event', imageClicked)
     OS_Manager.my_window.image_fig.canvas.mpl_connect('motion_notify_event', imageHoovered)
@@ -152,14 +167,14 @@ def connect_apps():
     OPW.filter_out_selection.param.watch(filterOPWSelection,"value")
     OPW.update_source_dataframe = updateFusionDf
     OPW.save_fusion_dataframe_with_pca = save_fusion_dataframe
-    
+
 
 def start():
     OS_Manager.splash.close()
     OS_Manager.my_window.show()
     with patch('OS_Manager.QFileDialog.getExistingDirectory', return_value="images"):
         OS_Manager.openFolder()
-    
+
     msg_box = QMessageBox()
     msg_box.setIcon(QMessageBox.Warning)
     msg_box.setWindowTitle("Warning: Reduced Software Version")
@@ -169,15 +184,15 @@ def start():
                     "features or wish to discuss your specific needs, please "
                     "don't hesitate to contact us directly at our email addresses: \n"
                     "mbianne@nus.edu.sg or victor.racine@quantacell.com\n\n"
-                    "Thank you for using our software."
-                    )
+                    "Thank you for using our software.")
+    msg_box.setInformativeText("This version is intended for demonstration and evaluation purposes only.")
     msg_box.setStandardButtons(QMessageBox.Ok)
     msg_box.setDefaultButton(QMessageBox.Ok)
     # msg_box.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowSystemMenuHint)
     # msg_box.setWindowFlags(msg_box.windowFlags() & ~Qt.WindowCloseButtonHint)
     msg_box.exec()
 
-    
+
     OS_Manager.app.exec()
 #region Demo functionnality
 class DataFramePopup(QTableView):
@@ -192,7 +207,7 @@ class DataFramePopup(QTableView):
         size_hint = self.viewportSizeHint()
         cursor_pos = QCursor.pos()
         self.setGeometry(cursor_pos.x()-5, cursor_pos.y()-5,min(size_hint.width()+10,1000),min(size_hint.height()+10,800))
-        
+
 
     def get_table_model(self, dataframe):
         model = QStandardItemModel()
@@ -200,16 +215,14 @@ class DataFramePopup(QTableView):
         model.setVerticalHeaderLabels(dataframe.index)
         for row in range(dataframe.shape[0]):
             for col in range(dataframe.shape[1]):
-                v = float(dataframe.iloc[row, col])
-                vstr = '{:.0f}'.format(v) if np.round(v)==v else '{:.2f}'.format(v) if v>0.01 else str(v)
-                item = QStandardItem(vstr)
+                item = QStandardItem(str(dataframe.iloc[row, col]))
                 model.setItem(row, col, item)
         return model
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.Copy):
             self.copySelection()
         else:
-            super().keyPressEvent(event)
+            super(DataFramePopup, self).keyPressEvent(event)
 
     def copySelection(self):
         copied = ''
@@ -227,19 +240,12 @@ class HooverLab(QLabel ):
         self.setFocusPolicy(Qt.NoFocus)
     def update(self,lab=None, **kwargs):
         if lab is None:
-            self.setVisible(False)
+            self.setText("")
         else:
-            self.setVisible(True)
-            txt = str(lab)+"   " + ", ".join([k +" "+ str(el) for k, el in kwargs.items() ])
-            self.setText(txt)
-            cursor_pos = QCursor.pos()
-            x,y = cursor_pos.x(), cursor_pos.y()
-            if self.parent() is not None:
-                geom = self.parent().geometry()
-                x,y = x-geom.x(),y-geom.y()
-
-            self.setGeometry(cursor_pos.x()-20, cursor_pos.y()-20,self.width(),self.height())
+            self.setText(str(lab))
             self.adjustSize()
+            self.move(QCursor.pos())
+            self.show()
 class HoveringListWidget(QComboBox):
     def __init__(self, list_el = ["titi","toto"], parent = None):
         super(HoveringListWidget, self).__init__(parent)
@@ -257,10 +263,10 @@ class LoadModelInputDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Model Informations")
-        
+
         layout1 = QVBoxLayout()
         layout2 = QHBoxLayout()
-        
+
         self.model_name_edit = QLineEdit()
         layout1.addWidget(QLabel("Model Name:"))
         layout1.addWidget(self.model_name_edit)
@@ -268,11 +274,11 @@ class LoadModelInputDialog(QDialog):
 
         self.d_spins = {}
         for el in ['dx','dy','dz']:
-            spin = QLineEdit()
+            spin = QLineEdit("1.0")
             spin.setValidator(QDoubleValidator())
-            spin.setText("1.00")
+            layout2.addWidget(QLabel(el))
             layout2.addWidget(spin)
-            self.d_spins[el] =spin
+            self.d_spins[el] = spin
 
         layout1.addLayout(layout2)
 
@@ -280,9 +286,9 @@ class LoadModelInputDialog(QDialog):
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout1.addWidget(button_box)
-        
+
         self.setLayout(layout1)
-        
+
     @staticmethod
     def get_inputs():
         dialog = LoadModelInputDialog()
@@ -296,10 +302,10 @@ class LoadModelInputDialog(QDialog):
 def getFakeProgressbar():
     class fake_popup(object):
         def updateProgressBar(self,*args,**kwargs):
-            return
+            pass
     return fake_popup
 
-def getImageDataframe(object_name, file_name):   
+def getImageDataframe(object_name, file_name):
     if glob.CONTEXT.data_manager.data is None or glob.CONTEXT.data_manager.data.empty or file_name not in glob.CONTEXT.data_manager.data.index:
         empty_index = pd.MultiIndex.from_arrays([[], []], names=['file', 'corresponding_organoid'])
         return pd.DataFrame([],index = empty_index)
@@ -337,49 +343,75 @@ def process_decorator(f):
         return result
     return wrapper
 
+
 def process_file_and_density():
     OS_Manager.my_window.ChangeModelTextBrowser.setText(str(OS_Manager.my_window.DefaultModelComboBox.currentData()))
-    dictPredicted = OS_Manager.processFile()
-    fusion_path = next(Path(dictPredicted["result_folder"]).glob("fusion-statistics.csv" if OS_Manager.dictPredicted["folder"] else "*fusion-statistics.csv"))
-    fusiondf = pd.read_csv(fusion_path)
-    if dictPredicted["images_paths"]["mask_organo"] is not None:
-        mask = imread(dictPredicted["images_paths"]["mask_organo"])
+
+    model_name = OS_Manager.my_window.getNucleiParam()["defaultModel"]
+
+    if model_name == "CellposeSAM":
+        dictPredicted = OS_Manager.process_with_cellpose()
     else:
+        dictPredicted = OS_Manager.processFile()
+
+    if not dictPredicted or not dictPredicted.get("result_folder"):
+        print("Processing failed or was cancelled.")
+        return
+
+    fusion_path = next(Path(dictPredicted["result_folder"]).glob(
+        "fusion-statistics.csv" if OS_Manager.dictPredicted["folder"] else "*fusion-statistics.csv"))
+    fusiondf = pd.read_csv(fusion_path)
+    if dictPredicted["images_paths"].get("mask_organo") is not None:
+        mask = imread(dictPredicted["images_paths"]["mask_organo"])
+    elif dictPredicted["images_paths"].get("mask_nuclei") is not None:
         mask = np.ones(imread(dictPredicted["images_paths"]["mask_nuclei"]).shape)
+    else:
+        # Handle case where no mask is available
+        print("Warning: No mask found for density analysis.")
+        return dictPredicted
+
     try:
-        new_fusion_df = comput_density_stats(fusiondf, mask) #density stats seem to hav bugs and i don't have the time to correct them...
+        new_fusion_df = comput_density_stats(fusiondf, mask)
         new_fusion_df.to_csv(fusion_path)
-    except:
-        print("could not process density analysis")
+    except Exception as e:
+        print(f"Could not process density analysis: {e}")
     return dictPredicted
+
 
 def add_selection_layer_decorator_to_image_display(f):
     argspec = inspect.getfullargspec(f)
     argnames = argspec.args[1:]
-    
-    def wrapper(*args,**kwargs):
+
+    def wrapper(*args, **kwargs):
         args = list(args)
-        for name in argnames:
-            if name not in kwargs and len(args)>0:
-                kwargs[name] = args.pop(0)
-        z = min(OS_Manager.my_window.ImageViewerSlider.value(),len(kwargs["selectedImage"])-1)
-        args = list(args)
-        if "layer" in kwargs and kwargs["layer"] is not None:
-            layer = kwargs["layer"]
-        else:
-            layer = None
-        
-        if layer is not None and  OS_Manager.interactiveLayer is not  None and not np.all(OS_Manager.interactiveLayer[z] == 0) :
-            mask = OS_Manager.interactiveLayer[z]!=0
-            layer = layer[z,None].copy()
-            layer[0,mask] = OS_Manager.interactiveLayer[z,mask].clip(0,255)
+        # Map positional arguments to keyword arguments
+        for i, arg_name in enumerate(argnames):
+            if i < len(args):
+                if arg_name not in kwargs:
+                    kwargs[arg_name] = args[i]
+
+        if kwargs.get("selectedImage") is None:
+            # If selectedImage is still None, we cannot proceed.
+            # This might happen if the function is called without an image.
+            # We can pass the call to the original function to handle it.
+            return f(*args, **kwargs)
+
+        z = min(OS_Manager.my_window.ImageViewerSlider.value(), len(kwargs["selectedImage"]) - 1)
+
+        layer = kwargs.get("layer")
+
+        if layer is not None and OS_Manager.interactiveLayer is not None and not np.all(
+                OS_Manager.interactiveLayer[z] == 0):
+            layer = OS_Manager.interactiveLayer[z].copy()
+            layer[..., :3] = np.clip(layer[..., :3] + kwargs["layer"][z, ..., :3], 0, 255)
+
         elif layer is not None:
-            layer = layer[z,None]
+            layer = layer[z]
 
         kwargs["layer"] = layer
         kwargs["z"] = 0
-        kwargs["selectedImage"] = kwargs["selectedImage"][z,None]
-        return f(*args, **kwargs)        
+        kwargs["selectedImage"] = kwargs["selectedImage"][z, None]
+        return f(**kwargs)
 
     return wrapper
 
@@ -387,18 +419,7 @@ def add_interactive_layer_to_get_current_mask_decorator(f):
     def wrapper(*args,**kwargs):
         ret = f(*args,**kwargs)
         if ret[1] is not None and not glob.CONTEXT.data_manager.data.empty:
-            mask_name = OS_Manager.my_window.MaskVisualisationComboBox.currentText()
-            im_name = OS_Manager.fileInfos[OS_Manager.my_window.FileListWidget.currentRow()].name
-            if OS_Manager.interactiveLayer is not None: OS_Manager.interactiveLayer[...] = 0
-            else:OS_Manager.interactiveLayer = np.zeros_like(ret[0])
-            OS_Manager.currentImageDf = getImageDataframe(OS_Manager.maskNameToDt[mask_name],im_name)
-            to_hide = set(np.unique(ret[1])[1:]).difference( set(OS_Manager.currentImageDf.index))
-            if len(to_hide)>0:
-                m = np.isin(ret[1],list(to_hide))
-                OS_Manager.interactiveLayer[m,3]=-1
-
-            if OS_Manager.my_window.changeViewCheckBox.isChecked() and OS_Manager.interactiveLayer is not None:
-                ret[1][OS_Manager.interactiveLayer[...,3]==-1]=0
+            OS_Manager.interactiveLayer = np.zeros(ret[1].shape+(4,),dtype=np.int16)
         return ret
 
     return wrapper
@@ -423,7 +444,7 @@ def filter_event_link_to_image_decorator(f):
         OPW.window.plot_widget.reload()
         return ret
 
-    return wrapper    
+    return wrapper
 
 def set_image_window_decorator(f):
     def wrapper(*args,**kwargs):
@@ -431,7 +452,7 @@ def set_image_window_decorator(f):
         OS_Manager.my_window.image_fig.canvas.mpl_connect('button_press_event', imageClicked)
         OS_Manager.my_window.image_fig.canvas.mpl_connect('motion_notify_event', imageHoovered)
         OS_Manager.currentLayer,OS_Manager.currentMask = OS_Manager.getCurrentMask(OS_Manager.my_window.MaskVisualisationComboBox.currentText(),
-                                index = OS_Manager.my_window.FileListWidget.currentRow(), folder_mode = OS_Manager.dictPredicted["folder"] if OS_Manager.dictPredicted is not None else None)
+                                OS_Manager.fileInfos[OS_Manager.my_window.FileListWidget.currentRow()].name)
         return ret
     return wrapper
 
@@ -441,24 +462,9 @@ def data_analysis_decorator(f, requirement={'all_features' : 1,'feature_selected
     def wrapper(*args,**kwargs):
         vals = data_analysis_requirement_checker()
         for k in requirement.keys():
-            n = len(vals[k])
-            if n>=requirement[k]: continue
-            if "all" in k : 
-                msgBox = OS_Manager.QMessageBox()
-                msgBox.setWindowTitle("Missing Data")
-                msgBox.setText("This plot requires at least %d %s to be executed (curently %d)."%(requirement[k],k.replace("all_",""),n))
-                msgBox.exec()
+            if len(vals[k]) < requirement[k]:
+                QMessageBox.critical(None,"Invalid parameters", "missing parameters for data analysis: %s"%k)
                 return
-            elif k=="data_group_selected": 
-                [[glob.CONTEXT.main_windows.dataGroupWidget.item(row, col).setSelected(True) for row in range(glob.CONTEXT.main_windows.dataGroupWidget.rowCount())] for col in range(glob.CONTEXT.main_windows.dataGroupWidget.columnCount())]
-            elif k=="feature_selected": 
-                for i in range(requirement[k]-len(vals[k])):
-                    if vals[k] in default_descriptors: continue
-                    tofind = default_descriptors[i].replace("_"," ")
-                    item = glob.CONTEXT.main_windows.descriptorListWidget.findItems(tofind,Qt.MatchContains)[0]
-                    glob.CONTEXT.main_windows.descriptorListWidget.setCurrentItem(item,QtCore.QItemSelectionModel.SelectionFlag.Select)
-            elif k == "data_group_control":
-                glob.CONTEXT.app_manager.data_group_item_clicked(0,0)
 
         return f(*args,**kwargs)
     return wrapper
@@ -490,8 +496,8 @@ def imageHoovered(event):
         d = getImageDataframe(OS_Manager.maskNameToDt[mask_name],im_name)
         if lab not in d.index:
             OS_Manager.hooverLab.update(None)
-        else:    
-            OS_Manager.hooverLab.update(lab, **{"" : " %.1f um3"%d.loc[lab,"volume_um3"]})
+        else:
+            OS_Manager.hooverLab.update(lab)
 
 def imageClicked(event):
     if event.button == 1:
@@ -545,7 +551,7 @@ def getlabMask(lab):
     return mask, bbox
 
 def addLabelToSelection(lab):
-        mask, bbox = getlabMask(lab) 
+        mask, bbox = getlabMask(lab)
         # OS_Manager.currentLayer[bbox][mask,3]= np.clip(OS_Manager.currentLayer[bbox][mask,3],150,255)
         OS_Manager.interactiveLayer[bbox][mask,3]= np.clip(OS_Manager.currentLayer[bbox][mask,3],150,255)
         OS_Manager.labelSelection.add(lab)
@@ -567,7 +573,7 @@ def get_info():
     df.index = df.index.astype(int).astype(str)
     OS_Manager.my_window.dataframe_popup =  DataFramePopup(df.T)
     OS_Manager.my_window.dataframe_popup.setWindowTitle("Features")
-    OS_Manager.my_window.dataframe_popup.show()  
+    OS_Manager.my_window.dataframe_popup.show()
 
 def filterSelected():
     mask_name = OS_Manager.maskNameToDt[OS_Manager.my_window.MaskVisualisationComboBox.currentText()]
@@ -634,14 +640,16 @@ def unSelectAllLabel():
     OS_Manager.my_window.showImage(OS_Manager.selectedImage, layer = OS_Manager.currentLayer)
 
 def isValidStardisModel(model_path):
+    if str(model_path) == "CellposeSAM":
+        return True
     return  Path(model_path).exists() and  \
          (Path(model_path)/"config.json").exists() and \
-         (Path(model_path)/"weights_best.h5").exists() or (Path(model_path)/"weights_last.h5").exists() or  (Path(model_path)/"encrypted").exists()
+         ( (Path(model_path)/"weights_best.h5").exists() or (Path(model_path)/"weights_last.h5").exists() )
 
 def loadModel(*args,model_path = None, model_name = None, model_resolution = None):
     if model_path is None:
         model_path = QFileDialog.getExistingDirectory(None, "Select Stardist Model Folder")
-    if not isValidStardisModel(model_path): 
+    if not isValidStardisModel(model_path):
         QMessageBox.critical(None,"Invalid Stardist Folder", "Stardist folder must contain 'config.json' and 'weights_(best/last).h5' files")
         return
 
@@ -662,25 +670,35 @@ def loadModel(*args,model_path = None, model_name = None, model_resolution = Non
 def adjustSize2ModelAuto():
     OS_Manager.my_window.ResampleXLineEdit.setEnabled(True)
     OS_Manager.my_window.ResampleYLineEdit.setEnabled(True)
-    OS_Manager.my_window.ResampleZLineEdit.setEnabled(True)   
-    if not OS_Manager.my_window.autoResizeButton.isChecked():return 
+    OS_Manager.my_window.ResampleZLineEdit.setEnabled(True)
+    if not OS_Manager.my_window.autoResizeButton.isChecked():return
     im_rez = OS_Manager.my_window.getImageParameters()
     for el in im_rez.values():
         if el  == "": return
-    
-    model_rez = info_dict["models"][OS_Manager.my_window.getNucleiParam()["defaultModel"]] if OS_Manager.my_window.getNucleiParam()["defaultModel"] in info_dict["models"] else {"dz":1.0,"dy":1.0,"dx":1.0}
+
+    model_name = OS_Manager.my_window.getNucleiParam()["defaultModel"]
+    if model_name == "CellposeSAM":
+        OS_Manager.my_window.ResampleZLineEdit.setText("1.0000")
+        OS_Manager.my_window.ResampleYLineEdit.setText("1.0000")
+        OS_Manager.my_window.ResampleXLineEdit.setText("1.0000")
+        OS_Manager.my_window.ResampleXLineEdit.setEnabled(False)
+        OS_Manager.my_window.ResampleYLineEdit.setEnabled(False)
+        OS_Manager.my_window.ResampleZLineEdit.setEnabled(False)
+        return
+
+    model_rez = info_dict["models"][model_name] if model_name in info_dict["models"] else {"dz":1.0,"dy":1.0,"dx":1.0}
     rz,ry,rx = (float(im_rez["dz"])/model_rez["dz"], float(im_rez["dy"])/model_rez["dy"], float(im_rez["dx"])/model_rez["dx"])
     OS_Manager.my_window.ResampleZLineEdit.setText("%.4f"%rz)
     OS_Manager.my_window.ResampleYLineEdit.setText("%.4f"%ry)
     OS_Manager.my_window.ResampleXLineEdit.setText("%.4f"%rx)
     OS_Manager.my_window.ResampleXLineEdit.setEnabled(False)
     OS_Manager.my_window.ResampleYLineEdit.setEnabled(False)
-    OS_Manager.my_window.ResampleZLineEdit.setEnabled(False)  
+    OS_Manager.my_window.ResampleZLineEdit.setEnabled(False)
 
 
 def show_pannel_selection(*args):
     im_name = OS_Manager.fileInfos[OS_Manager.my_window.FileListWidget.currentRow()].name
-    
+
     object_name = OS_Manager.maskNameToDt[ OS_Manager.my_window.MaskVisualisationComboBox.currentText()]
     OS_Manager.currentImageDf = getImageDataframe(object_name, im_name)
     if OS_Manager.currentImageDf.empty:return
@@ -690,7 +708,7 @@ def show_pannel_selection(*args):
     selected = OPW.dataset.data.loc[selected_indices,["file",element_indexer]].set_index("file")
     if im_name not in selected.index:return
 
-    
+
     selected = np.unique(selected.loc[im_name,element_indexer].values.astype(float).astype(int))
     selected = OS_Manager.currentImageDf.index.intersection(selected)
     if len(selected)==0:return
@@ -729,14 +747,14 @@ def filterOPWSelection(event):
     for lab in new_df.index:
         if lab not in old_df.index:
             unhideLabel(lab)
-    OS_Manager.my_window.showImage(OS_Manager.selectedImage, layer = OS_Manager.currentLayer)    
+    OS_Manager.my_window.showImage(OS_Manager.selectedImage, layer = OS_Manager.currentLayer)
 
 def updateFusionDf(df):
     old_df = glob.CONTEXT.data_manager.data.reset_index()
     to_add = [el for el in df.columns if el not in old_df.columns]
     for el in to_add:
         glob.CONTEXT.data_manager.add_column(df[el])
-    
+
 def save_fusion_dataframe(*args, **kwargs):
     if OS_Manager.dictPredicted["folder"]:
         fusion_path = next(Path(OS_Manager.dictPredicted["result_folder"]).glob("fusion-statistics.csv"))
@@ -754,4 +772,4 @@ update_NX_UI()
 update_OPW_UI()
 connect_apps()
 start()
-OPW.window.server_thread.stop() 
+OPW.window.server_thread.stop()
